@@ -1,90 +1,70 @@
 # Daily Planner Application
 
-A full-stack web application I built to practice GoLang and API development. It helps users schedule, track, and manage their daily tasks. 
+A full-stack web application built to practice Go and API development. It helps users schedule, track, and manage their daily tasks.
 
-I built this using a decoupled monorepo structure. The backend is a REST API written in Go, and the frontend is built with plain HTML, CSS, and JavaScript. They communicate with each other using JSON. I chose this setup to keep the business logic secure on the server while keeping the frontend lightweight and fast.
+The project uses a decoupled monorepo structure. The backend is a REST API written in Go, and the frontend is built with HTML, CSS, and vanilla JavaScript. They communicate using JSON.
 
 ## Key Features
 
-- **RESTful API:** The Go backend handles all the data using standard GET, POST, PATCH, and DELETE requests.
-- **Smart Late Detection:** The server checks the current time against the task deadline. If a task is overdue, it automatically flags it as "Late" before sending the data to the browser, ensuring the time is always accurate.
-- **Secure Database Connection:** I used Firebase Firestore for the database. The sensitive service account keys stay safely on the backend, so they are never exposed to the frontend.
-- **Lightweight Frontend:** No heavy frameworks here. I used vanilla JavaScript to keep the project simple and easy to understand.
-- **CORS Handling:** I implemented custom middleware in Go to allow the frontend and backend to communicate smoothly during local development.
+- **RESTful API:** The Go backend handles data using GET, POST, PATCH, and DELETE requests.
+- **Smart late detection:** The server checks the current time against task deadlines and flags overdue tasks as "Late."
+- **Secure database connection:** Firebase Cloud Firestore credentials stay on the backend and are not exposed to the frontend.
+- **Lightweight frontend:** The frontend uses vanilla JavaScript without a framework.
+- **CORS handling:** Custom Go middleware allows the frontend and backend to communicate during local development.
 
 ## Technology Stack
 
-- **Backend:** Go (Golang)
+- **Backend:** Go
 - **Database:** Firebase Cloud Firestore
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript
-- **Version Control:** Git and GitHub
+- **Frontend:** HTML5, CSS3, vanilla JavaScript
+- **Version control:** Git and GitHub
 
----
-
-## How to Run Locally
-
-If you want to run this project on your own machine, follow these steps.
+## Run Locally
 
 ### Prerequisites
 
-Make sure you have the following installed on your computer:
-
-- [Go (Golang)](https://go.dev/dl/)
+- [Go](https://go.dev/dl/)
 - [Git](https://git-scm.com/)
-- A Firebase Project with Cloud Firestore enabled.
+- A Firebase project with Cloud Firestore enabled
 
-### Step 1: Clone the Repository
-
-Open your terminal and clone the project to your computer:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/strongandcreamycoffee/daily-planner.git
 cd daily-planner
+```
 
-### Step 2: Set Up the Backend
+### 2. Configure and run the backend
 
-The backend needs a Firebase Service Account key to connect to the database.
+The backend needs a Firebase service account key to connect to Firestore.
 
-**1. Go to the backend folder:**
+1. In the Firebase Console, open **Project settings > Service accounts** and generate a private key.
+2. Save the downloaded file as `serviceAccountKey.json` in the `backend-monorepo` directory. This file is ignored by Git; do not commit or share it.
+3. Install dependencies and start the API:
 
 ```bash
 cd backend-monorepo
-
-**2. Get your `serviceAccountKey.json` file** from your Firebase Console (Project Settings > Service Accounts > Generate new private key).
-
-**3. Put the `serviceAccountKey.json` file** directly inside the `backend-monorepo` folder. 
-*(Note: This file is ignored by Git so it doesn't get uploaded publicly).*
-
-**4. Download the necessary Go libraries:**
-
-```bash
 go mod tidy
+go run main.go
+```
 
-### Step 3: Run the Frontend
+The API listens at `http://localhost:8083`.
 
-**1. Open a new terminal window** and go to the frontend folder:
+### 3. Run the frontend
 
-```bash
-cd ../frontend-monorepo
-
-**2. Open the `index.html` file** directly in your browser, or use a local server like the VS Code "Live Server" extension. 
-
-**3. Make sure your Go backend is still running** in the other terminal window so the frontend can fetch the tasks.
+In a separate terminal, open `frontend-monorepo/index.html` in a browser, or serve the folder with a local server such as the VS Code Live Server extension. Keep the Go backend running so the frontend can fetch tasks.
 
 ## Project Structure
 
-Here is how the files are organized in this repository:
-
 ```text
 daily-planner/
-├── backend-monorepo/       # Go API Server
-│   ├── main.go             # Server routes, handlers, and CORS middleware
-│   ├── go.mod              # Go module dependencies
-│   └── serviceAccountKey.json # (Local only) Firebase credentials
-│
-├── frontend-monorepo/      # Client-side Interface
-│   ├── index.html          # Main entry point
-│   ├── style.css           # UI styling
-│   └── script.js           # DOM manipulation and API fetch logic
-│
-└── README.md               # Project documentation
+├── backend-monorepo/           # Go API server
+│   ├── main.go                 # Server routes, handlers, and CORS middleware
+│   ├── go.mod                  # Go module dependencies
+│   └── serviceAccountKey.json  # Local Firebase credentials (not committed)
+├── frontend-monorepo/          # Client-side interface
+│   ├── index.html              # Main entry point
+│   ├── style.css               # UI styling
+│   └── script.js               # DOM manipulation and API requests
+└── README.md                   # Project documentation
+```
