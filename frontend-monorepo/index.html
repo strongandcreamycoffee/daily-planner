@@ -9,30 +9,44 @@
 <body>
 
     <div class="app-container">
-        <header>
-            <h1>Daily Planner</h1>
-            <p>Schedule & Track</p>
-            <div class="stats-pill" id="statsDisplay">Loading...</div>
+        <header class="app-header">
+            <div class="header-titles">
+                <h1>Daily Planner</h1>
+                <p>Schedule & Track</p>
+            </div>
+            <!-- Professional Progress & Stats Component -->
+            <div class="stats-pill-container" id="statsDisplay">
+                <div class="stats-text-row">
+                    <span id="statsLabel">Today's Progress</span>
+                    <span id="statsPercent">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+                </div>
+                <div class="stats-count-row" id="statsCountText">0 Active / 0 Total</div>
+            </div>
         </header>
 
         <main class="panel">
             <!-- Add Form -->
             <form id="addForm" class="add-form">
                 <input type="text" name="task" placeholder="Add a schedule" required class="input-field main-input">
-                
+
                 <div class="datetime-group">
                     <input type="date" name="date" required class="input-field date-picker">
                     <input type="time" name="time" required class="input-field time-picker">
                 </div>
-                
-                <button type="submit" class="btn-add">Add</button>
+
+                <button type="submit" class="btn-add">Add Task</button>
             </form>
-                 <!-- ADD THIS BLOCK -->
-<div class="filter-bar">
-    <button class="filter-btn active" onclick="setFilter('all')">All Tasks</button>
-    <button class="filter-btn" onclick="setFilter('active')">Active</button>
-    <button class="filter-btn" onclick="setFilter('completed')">Completed</button>
-</div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="setFilter('all')">All Tasks</button>
+                <button class="filter-btn" onclick="setFilter('active')">Active</button>
+                <button class="filter-btn" onclick="setFilter('completed')">Completed</button>
+            </div>
+
             <!-- Task List Container -->
             <ul id="taskList" class="todo-list">
                 <!-- JS will inject items here -->
@@ -44,7 +58,7 @@
         </main>
     </div>
 
-    <!-- Edit Modal (Hidden by default) -->
+    <!-- Edit Modal -->
     <div id="editModal" class="modal-bg" style="display:none;">
         <div class="modal-box">
             <h2>Edit Task</h2>
@@ -68,6 +82,33 @@
                 <div class="modal-footer">
                     <button type="submit" class="btn-save">Save Changes</button>
                     <button type="button" onclick="closeModal()" class="btn-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reschedule Modal -->
+    <div id="rescheduleModal" class="modal-bg" style="display:none;">
+        <div class="modal-box">
+            <h2>Reschedule Task</h2>
+            <p id="rescheduleTaskTitle" class="modal-subtitle"></p>
+            <form id="rescheduleForm">
+                <input type="hidden" id="rescheduleId">
+
+                <div class="modal-split">
+                    <div>
+                        <label>New Date</label>
+                        <input type="date" id="rescheduleDate" required class="modal-input">
+                    </div>
+                    <div>
+                        <label>New Time</label>
+                        <input type="time" id="rescheduleTime" required class="modal-input">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn-save">Confirm Reschedule</button>
+                    <button type="button" onclick="closeRescheduleModal()" class="btn-cancel">Cancel</button>
                 </div>
             </form>
         </div>

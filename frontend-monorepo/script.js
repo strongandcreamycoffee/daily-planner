@@ -1,206 +1,322 @@
-const API_BASE = "http://localhost:8083/api";
-let currentFilter = 'all'; // State variable for filtering
+// State Management
+let tasks = JSON.parse(localStorage.getItem('daily_planner_tasks')) || [
+    { id: '1', text: 'Break', date: '2026-10-22', time: '12:00', completed: true, subtasks: [] },
+    { id: '2', text: 'test toggle', date: '2026-10-22', time: '11:04', completed: true, subtasks: [] },
+    { id: '3', text: 'EOD', date: '2026-10-22', time: '17:10', completed: true, subtasks: [] },
+    { id: '4', text: 'marvin ppt', date: '2026-10-28', time: '09:12', completed: false, subtasks: [
+        { id: 's1', text: 'Gather slides', completed: true },
+        { id: 's2', text: 'Review metrics', completed: false }
+    ]}
+];
 
+let currentFilter = 'all';
+let expandedTaskIds = new Set(); // Tracks expanded cards
+
+// Professional SVG Icon Library Constants
+const ICONS = {
+    calendar: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+    clock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+    edit: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+    trash: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+    chevronDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+    chevronUp: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>`,
+    close: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
+};
+
+// Initialize App
 document.addEventListener('DOMContentLoaded', () => {
-    loadTasks();
-    
-    // Set default dates in form
+    // Set default date/time in add form to current local time
     const now = new Date();
-    document.querySelector('input[name="date"]').valueAsNumber = now.getTime();
-    document.querySelector('input[name="time"]').value = now.toTimeString().slice(0,5);
+    const todayStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().slice(0, 5);
 
-    // Handle Add Submit
-    document.getElementById('addForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        
-        try {
-            await fetch(`${API_BASE}/todo/add`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text: formData.get('task'),
-                    date: formData.get('date'),
-                    time: formData.get('time')
-                })
-            });
-            e.target.reset(); 
-            
-            // Re-set defaults
-            const newNow = new Date();
-            document.querySelector('input[name="date"]').valueAsNumber = newNow.getTime();
-            document.querySelector('input[name="time"]').value = newNow.toTimeString().slice(0,5);
-            
-            loadTasks();
-        } catch (err) {
-            console.error(err);
-            alert("Failed to add task");
-        }
-    });
+    document.querySelector('input[name="date"]').value = todayStr;
+    document.querySelector('input[name="time"]').value = timeStr;
 
-    // Handle Edit Submit
-    document.getElementById('editForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('editId').value; 
-        
-        try {
-            await fetch(`${API_BASE}/todo/update`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: id,
-                    text: document.getElementById('editText').value,
-                    date: document.getElementById('editDate').value,
-                    time: document.getElementById('editTime').value
-                })
-            });
-            closeModal();
-            loadTasks();
-        } catch (err) {
-            console.error(err);
-            alert("Failed to update task");
-        }
-    });
+    renderTasks();
+    setupEventListeners();
 });
 
-// NEW: Filter Logic
-function setFilter(filterType) {
-    currentFilter = filterType;
-    
-    // Update UI buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    loadTasks(); // Reload to apply filter
+function saveAndRefresh() {
+    localStorage.setItem('daily_planner_tasks', JSON.stringify(tasks));
+    renderTasks();
 }
 
-async function loadTasks() {
-    try {
-        const res = await fetch(`${API_BASE}/todos`);
-        if (!res.ok) throw new Error("Network response was not ok");
-        let tasks = await res.json();
-        
-        // Apply Filter
-        if (currentFilter === 'active') {
-            tasks = tasks.filter(t => !t.done);
-        } else if (currentFilter === 'completed') {
-            tasks = tasks.filter(t => t.done);
-        }
-        
-        renderTasks(tasks);
-    } catch (error) {
-        console.error("Fetch error:", error);
-        document.getElementById('statsDisplay').innerText = "Connection Error";
-    }
-}
+function setupEventListeners() {
+    // Add Form Submit
+    document.getElementById('addForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
 
-function renderTasks(tasks) {
-    const listEl = document.getElementById('taskList');
-    const emptyEl = document.getElementById('emptyState');
-    const statsEl = document.getElementById('statsDisplay');
+        const newTask = {
+            id: Date.now().toString(),
+            text: formData.get('task'),
+            date: formData.get('date'),
+            time: formData.get('time'),
+            completed: false,
+            subtasks: []
+        };
 
-    listEl.innerHTML = ''; 
-    
-    // Calculate Stats based on ALL data (optional, or just filtered data)
-    // Here we calculate based on what is currently shown
-    let activeCount = 0;
-    let totalCount = tasks.length;
+        tasks.push(newTask);
+        e.target.reset();
 
-    if (totalCount === 0) {
-        emptyEl.style.display = 'block';
-        // Dynamic Empty Message
-        if(currentFilter === 'active') emptyEl.innerText = "No active tasks. Great job!";
-        else if(currentFilter === 'completed') emptyEl.innerText = "No completed tasks yet.";
-        else emptyEl.innerText = "Your schedule is clear.";
-        
-        statsEl.innerHTML = `<span class="active">0</span> Active / <span class="total">0</span> Total`;
-        return;
-    } else {
-        emptyEl.style.display = 'none';
-    }
+        // Reset default date/time again
+        const now = new Date();
+        document.querySelector('input[name="date"]').value = now.toISOString().split('T')[0];
+        document.querySelector('input[name="time"]').value = now.toTimeString().slice(0, 5);
 
-    tasks.forEach(task => {
-        if(!task.done) activeCount++;
-
-        const li = document.createElement('li');
-        li.className = `todo-row ${task.done ? 'is-done' : ''} ${task.is_late ? 'is-late' : ''}`;
-        
-        li.innerHTML = `
-            <form action="#" onsubmit="event.preventDefault()">
-                <input type="checkbox" class="custom-check" ${task.done ? 'checked' : ''} onchange="toggleTask('${task.id}')">
-            </form>
-            
-            <div class="info-column">
-                <span class="item-title">${escapeHtml(task.text)}</span>
-                <div class="item-meta">
-                    <span><svg class="meta-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> ${task.date}</span>
-                    <span><svg class="meta-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${task.time}</span>
-                    ${task.is_late ? '<span class="badge-late">LATE</span>' : ''}
-                </div>
-            </div>
-
-            <div class="action-column">
-                <button class="icon-btn edit-icon" onclick="openEditModal('${task.id}', '${escapeJs(task.text)}', '${task.date}', '${task.time}')" title="Edit Task">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                </button>
-                
-                <button class="icon-btn del-icon" onclick="deleteTask('${task.id}')" title="Delete Task">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                </button>
-            </div>
-        `;
-        listEl.appendChild(li);
+        saveAndRefresh();
     });
 
-    statsEl.innerHTML = `<span class="active">${activeCount}</span> Active / <span class="total">${totalCount}</span> Total`;
+    // Edit Form Submit
+    document.getElementById('editForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const text = document.getElementById('editText').value;
+        const date = document.getElementById('editDate').value;
+        const time = document.getElementById('editTime').value;
+
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+            task.text = text;
+            task.date = date;
+            task.time = time;
+            closeModal();
+            saveAndRefresh();
+        }
+    });
+
+    // Reschedule Form Submit
+    document.getElementById('rescheduleForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = document.getElementById('rescheduleId').value;
+        const date = document.getElementById('rescheduleDate').value;
+        const time = document.getElementById('rescheduleTime').value;
+
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+            task.date = date;
+            task.time = time;
+            closeRescheduleModal();
+            saveAndRefresh();
+        }
+    });
 }
 
-// Actions
-async function toggleTask(id) {
-    try {
-        // 1. Send request to backend
-        const response = await fetch(`${API_BASE}/todo/toggle`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
-        });
+// Filter Setter
+function setFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    renderTasks();
+}
 
-        // 2. Check if response was successful (Status 200-299)
-        if (!response.ok) {
-            throw new Error(`Server responded with status ${response.status}`);
+// Check if task is late
+function checkIfLate(task) {
+    if (task.completed) return false;
+    const taskDateTime = new Date(`${task.date}T${task.time}`);
+    const now = new Date();
+    return taskDateTime < now;
+}
+
+// Render Tasks & Progress Bar
+function renderTasks() {
+    const taskList = document.getElementById('taskList');
+    const emptyState = document.getElementById('emptyState');
+    taskList.innerHTML = '';
+
+    // Filter tasks
+    const filteredTasks = tasks.filter(task => {
+        if (currentFilter === 'all' || currentFilter === 'active') return !task.completed;
+        if (currentFilter === 'completed') return task.completed;
+        return false;
+    });
+
+    if (filteredTasks.length === 0) {
+        emptyState.style.display = 'block';
+    } else {
+        emptyState.style.display = 'none';
+    }
+
+    // Calculate Today's Progress Stats
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todaysTasks = tasks.filter(t => t.date === todayStr);
+    const totalToday = todaysTasks.length;
+    const completedToday = todaysTasks.filter(t => t.completed).length;
+    const activeToday = totalToday - completedToday;
+    const progressPercent = totalToday === 0 ? 0 : Math.round((completedToday / totalToday) * 100);
+
+    // Update Header Progress UI
+    document.getElementById('statsPercent').innerText = `${progressPercent}%`;
+    document.getElementById('progressBarFill').style.width = `${progressPercent}%`;
+    document.getElementById('statsCountText').innerText = `${activeToday} Active / ${totalToday} Total`;
+
+    // Render each task card
+    filteredTasks.forEach(task => {
+        const isLate = checkIfLate(task);
+        const isExpanded = expandedTaskIds.has(task.id);
+
+        const li = document.createElement('li');
+        li.className = `todo-item ${isLate ? 'late' : ''}`;
+
+        // Main Row HTML with Professional SVG Icons (Zero Emojis)
+        let html = `
+            <div class="task-main-row">
+                <div class="task-left">
+                    <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onclick="toggleTask('${task.id}')">
+                    <div>
+                        <span class="task-title ${task.completed ? 'completed' : ''}">${escapeHTML(task.text)}</span>
+                        <div class="task-meta">
+                            <span class="meta-item">${ICONS.calendar} ${task.date}</span>
+                            <span class="meta-item">${ICONS.clock} ${task.time}</span>
+                            ${isLate ? '<span class="badge-late">Reschedule</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="task-actions">
+                    <button class="action-btn" onclick="openModal('${task.id}')" title="Edit">${ICONS.edit}</button>
+                    <button class="action-btn" onclick="deleteTask('${task.id}')" title="Delete">${ICONS.trash}</button>
+                    <button class="action-btn" onclick="toggleExpand('${task.id}')" title="Expand/Collapse">
+                        ${isExpanded ? ICONS.chevronUp : ICONS.chevronDown}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Subtasks Section (if expanded)
+        if (isExpanded) {
+            html += `
+                <div class="subtasks-section">
+                    <ul class="subtask-list">
+            `;
+            if (task.subtasks && task.subtasks.length > 0) {
+                task.subtasks.forEach(sub => {
+                    html += `
+                        <li class="subtask-item">
+                            <div class="subtask-left">
+                                <input type="checkbox" class="task-checkbox" ${sub.completed ? 'checked' : ''} onclick="toggleSubtask('${task.id}', '${sub.id}')">
+                                <span class="subtask-title ${sub.completed ? 'completed' : ''}">${escapeHTML(sub.text)}</span>
+                            </div>
+                            <button class="action-btn" onclick="deleteSubtask('${task.id}', '${sub.id}')" title="Delete subtask">${ICONS.close}</button>
+                        </li>
+                    `;
+                });
+            } else {
+                html += `<li style="font-size:12px; color: var(--text-muted); font-style: italic;">No subtasks yet.</li>`;
+            }
+
+            html += `
+                    </ul>
+                    <div class="subtask-add-row">
+                        <input type="text" id="subInput_${task.id}" placeholder="Add a subtask..." class="subtask-input" onkeydown="if(event.key==='Enter') addSubtask('${task.id}')">
+                        <button class="btn-add-sub" onclick="addSubtask('${task.id}')">Add Subtask</button>
+                    </div>
+                </div>
+            `;
         }
 
-        // 3. ONLY reload tasks if success confirmed
-        console.log("Toggle successful, reloading...");
-        await loadTasks(); 
-        
-    } catch (err) {
-        console.error("Toggle failed:", err);
-        alert("Failed to update task status. Please check terminal logs.");
-        
-        // Optional: Revert visual state if it fails? 
-        // For now, just let the next manual refresh fix it.
+        li.innerHTML = html;
+        taskList.appendChild(li);
+    });
+}
+
+// Task Actions
+function toggleTask(id) {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+        task.completed = !task.completed;
+        saveAndRefresh();
     }
 }
 
-// Modal Logic
-function openEditModal(id, text, date, time) {
-    document.getElementById('editId').value = id;
-    document.getElementById('editText').value = text;
-    document.getElementById('editDate').value = date;
-    document.getElementById('editTime').value = time;
-    document.getElementById('editModal').style.display = 'flex';
+function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    expandedTaskIds.delete(id);
+    saveAndRefresh();
+}
+
+// Expand / Collapse
+function toggleExpand(id) {
+    if (expandedTaskIds.has(id)) {
+        expandedTaskIds.delete(id);
+    } else {
+        expandedTaskIds.add(id);
+    }
+    renderTasks();
+}
+
+// Subtask Handlers
+function addSubtask(taskId) {
+    const input = document.getElementById(`subInput_${taskId}`);
+    const text = input.value.trim();
+    if (!text) return;
+
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+        if (!task.subtasks) task.subtasks = [];
+        task.subtasks.push({
+            id: 'sub_' + Date.now(),
+            text: text,
+            completed: false
+        });
+        saveAndRefresh();
+    }
+}
+
+function toggleSubtask(taskId, subId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.subtasks) {
+        const sub = task.subtasks.find(s => s.id === subId);
+        if (sub) {
+            sub.completed = !sub.completed;
+            saveAndRefresh();
+        }
+    }
+}
+
+function deleteSubtask(taskId, subId) {
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.subtasks) {
+        task.subtasks = task.subtasks.filter(s => s.id !== subId);
+        saveAndRefresh();
+    }
+}
+
+// Edit Modal Functions
+function openModal(id) {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+        document.getElementById('editId').value = task.id;
+        document.getElementById('editText').value = task.text;
+        document.getElementById('editDate').value = task.date;
+        document.getElementById('editTime').value = task.time;
+        document.getElementById('editModal').style.display = 'flex';
+    }
 }
 
 function closeModal() {
     document.getElementById('editModal').style.display = 'none';
 }
 
-// Helpers
-function escapeHtml(text) {
-    const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
-    return text.replace(/[&<>"']/g, m => map[m]);
+// Reschedule Modal Functions
+function openRescheduleModal(id) {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+        document.getElementById('rescheduleId').value = task.id;
+        document.getElementById('rescheduleTaskTitle').innerText = `Task: "${task.text}"`;
+        document.getElementById('rescheduleDate').value = task.date;
+        document.getElementById('rescheduleTime').value = task.time;
+        document.getElementById('rescheduleModal').style.display = 'flex';
+    }
 }
-function escapeJs(str) {
-    return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+
+function closeRescheduleModal() {
+    document.getElementById('rescheduleModal').style.display = 'none';
+}
+
+// Utility escape helper
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g,
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
 }
