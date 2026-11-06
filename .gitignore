@@ -1,2 +1,3 @@
-*.json
+serviceAccountKey.json
 .env
+node_modules/

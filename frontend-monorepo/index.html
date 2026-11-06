@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Planner</title>
+    
+    <!-- FullCalendar CSS -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css' rel='stylesheet' />
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,93 +31,121 @@
             </div>
         </header>
 
-        <main class="panel">
-            <!-- Add Form -->
-            <form id="addForm" class="add-form">
-                <input type="text" name="task" placeholder="Add a schedule" required class="input-field main-input">
+        <!-- NEW GRID LAYOUT STARTS HERE -->
+<div class="dashboard-grid">
+    
+    <!-- LEFT COLUMN: Your Existing Task List -->
+    <main class="panel left-column">
+        <!-- Add Form -->
+        <form id="addForm" class="add-form">
+            <input type="text" name="task" placeholder="Add a schedule" required class="input-field main-input">
 
-                <div class="datetime-group">
-                    <input type="date" name="date" required class="input-field date-picker">
-                    <input type="time" name="time" required class="input-field time-picker">
-                </div>
-
-                <button type="submit" class="btn-add">Add Task</button>
-            </form>
-
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <button class="filter-btn active" onclick="setFilter('all')">All Tasks</button>
-                <button class="filter-btn" onclick="setFilter('active')">Active</button>
-                <button class="filter-btn" onclick="setFilter('completed')">Completed</button>
+            <div class="datetime-group">
+                <input type="date" name="date" required class="input-field date-picker">
+                <input type="time" name="time" required class="input-field time-picker">
             </div>
 
-            <!-- Task List Container -->
-            <ul id="taskList" class="todo-list">
-                <!-- JS will inject items here -->
-            </ul>
+            <button type="submit" class="btn-add">Add Task</button>
+        </form>
+
+        <!-- Filter Bar + Calendar Toggle Button (NO ONCLICK ATTRIBUTES!) -->
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="all">All Tasks</button>
+            <button class="filter-btn" data-filter="active">Active</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
             
-            <div id="emptyState" class="empty-view" style="display:none;">
-                Your schedule is clear.
-            </div>
-        </main>
+            <!-- NEW BUTTON TOGGLE (NO ONCLICK!) -->
+            <button class="filter-btn btn-calendar-toggle" id="calendarToggleBtn">
+                📅 Show Calendar
+            </button>
+        </div>
+
+        <!-- Task List Container -->
+        <ul id="taskList" class="todo-list">
+            <!-- JS will inject items here -->
+        </ul>
+        
+        <div id="emptyState" class="empty-view" style="display:none;">
+            Your schedule is clear.
+        </div>
+    </main>
+
+    <!-- RIGHT COLUMN: Calendar Widget -->
+<aside class="right-column calendar-widget" id="calendarPanel" style="visibility: hidden; position: absolute;">
+    <div class="widget-header">
+        <h3>Schedule Overview</h3>
+        <small>Drag events to reschedule</small>
+    </div>
+    <div id='calendar'></div>
+</aside>
+
+</div>
+<!-- END GRID LAYOUT -->
+        
+
     </div>
 
     <!-- Edit Modal -->
-    <div id="editModal" class="modal-bg" style="display:none;">
-        <div class="modal-box">
-            <h2>Edit Task</h2>
-            <form id="editForm">
-                <input type="hidden" id="editId">
-                
-                <label>Description</label>
-                <input type="text" id="editText" required class="modal-input">
-                
-                <div class="modal-split">
-                    <div>
-                        <label>Date</label>
-                        <input type="date" id="editDate" required class="modal-input">
-                    </div>
-                    <div>
-                        <label>Time</label>
-                        <input type="time" id="editTime" required class="modal-input">
-                    </div>
+    <!-- Edit Modal -->
+<div id="editModal" class="modal-bg" style="display:none !important;">
+    <div class="modal-box">
+        <h2>Edit Task</h2>
+        <form id="editForm">
+            <input type="hidden" id="editId">
+            
+            <label>Description</label>
+            <input type="text" id="editText" required class="modal-input">
+            
+            <div class="modal-split">
+                <div>
+                    <label>Date</label>
+                    <input type="date" id="editDate" required class="modal-input">
                 </div>
+                <div>
+                    <label>Time</label>
+                    <input type="time" id="editTime" required class="modal-input">
+                </div>
+            </div>
 
-                <div class="modal-footer">
-                    <button type="submit" class="btn-save">Save Changes</button>
-                    <button type="button" onclick="closeModal()" class="btn-cancel">Cancel</button>
-                </div>
-            </form>
-        </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn-save">Save Changes</button>
+                <button type="button" id="closeEditBtn" class="btn-cancel">Cancel</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <!-- Reschedule Modal -->
-    <div id="rescheduleModal" class="modal-bg" style="display:none;">
-        <div class="modal-box">
-            <h2>Reschedule Task</h2>
-            <p id="rescheduleTaskTitle" class="modal-subtitle"></p>
-            <form id="rescheduleForm">
-                <input type="hidden" id="rescheduleId">
+<!-- Reschedule Modal -->
+<div id="rescheduleModal" class="modal-bg" style="display:none !important;">
+    <div class="modal-box">
+        <h2>Reschedule Task</h2>
+        <p id="rescheduleTaskTitle" class="modal-subtitle"></p>
+        <form id="rescheduleForm">
+            <input type="hidden" id="rescheduleId">
 
-                <div class="modal-split">
-                    <div>
-                        <label>New Date</label>
-                        <input type="date" id="rescheduleDate" required class="modal-input">
-                    </div>
-                    <div>
-                        <label>New Time</label>
-                        <input type="time" id="rescheduleTime" required class="modal-input">
-                    </div>
+            <div class="modal-split">
+                <div>
+                    <label>New Date</label>
+                    <input type="date" id="rescheduleDate" required class="modal-input">
                 </div>
-
-                <div class="modal-footer">
-                    <button type="submit" class="btn-save">Confirm Reschedule</button>
-                    <button type="button" onclick="closeRescheduleModal()" class="btn-cancel">Cancel</button>
+                <div>
+                    <label>New Time</label>
+                    <input type="time" id="rescheduleTime" required class="modal-input">
                 </div>
-            </form>
-        </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="submit" class="btn-save">Confirm Reschedule</button>
+                <button type="button" id="closeReschedBtn" class="btn-cancel">Cancel</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script src="script.js"></script>
+           <!-- FullCalendar JS Bundle -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+    
+    <!-- CRITICAL FIX: Relative path ./ not absolute / -->
+   <script type="module" src="./app.ts"></script>
 </body>
 </html>

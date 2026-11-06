@@ -4,7 +4,7 @@ A full-stack web application built to practice Go and API development. It helps 
 
 The project uses a decoupled monorepo structure. The backend is a REST API written in Go, and the frontend is built with HTML, CSS, and vanilla JavaScript. They communicate using JSON.
 
-## Key Features
+##git config --global user.name "Your New Name" Key Features
 
 - **RESTful API:** The Go backend handles data using GET, POST, PATCH, and DELETE requests.
 - **Smart late detection:** The server checks the current time against task deadlines and flags overdue tasks as "Late."
